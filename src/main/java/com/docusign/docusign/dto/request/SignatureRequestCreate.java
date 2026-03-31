@@ -12,7 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SignatureRequestCreate {
+public class SignatureRequestCreate{
     private UUID documentId;
     private SigningType signingType;
     private List<SignerRequest> signers;

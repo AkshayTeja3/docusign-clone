@@ -37,5 +37,7 @@ public class SignatureRequest {
         this.createdAt = LocalDateTime.now();
         this.status = SignatureRequestStatus.PENDING;
     }
+    @OneToMany(mappedBy = "signatureRequest", fetch = FetchType.LAZY)
+    private List<Signer> signers = new ArrayList<>();
 
 }

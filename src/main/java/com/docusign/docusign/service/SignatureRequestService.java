@@ -1,12 +1,10 @@
 package com.docusign.docusign.service;
 
-import com.docusign.docusign.domain.Document;
-import com.docusign.docusign.domain.SignatureRequest;
-import com.docusign.docusign.domain.Signer;
-import com.docusign.docusign.domain.User;
+import com.docusign.docusign.domain.*;
 import com.docusign.docusign.dto.request.SignatureRequestCreate;
 import com.docusign.docusign.dto.response.SignatureRequestResponse;
 import com.docusign.docusign.dto.response.SignerResponse;
+import com.docusign.docusign.event.AuditEventPublisher;
 import com.docusign.docusign.repository.DocumentRepository;
 import com.docusign.docusign.repository.SignatureRequestRepository;
 import com.docusign.docusign.repository.SignerRepository;
@@ -23,6 +21,7 @@ public class SignatureRequestService {
 
     private final SignatureRequestRepository signatureRequestRepository;
     private final SignerRepository signerRepository;
+    private final AuditEventPublisher auditEventPublisher;
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
 
@@ -62,7 +61,17 @@ public class SignatureRequestService {
 
         signerRepository.saveAll(signers);
 
-        // 5. Return response
+// ✅ use signers (entity list) not request.getSigners() (DTO list)
+        signers.forEach(signer ->
+                auditEventPublisher.publish(
+                        AuditAction.DOCUMENT_SENT,
+                        signer.getUser(),
+                        signatureRequest,           // ✅ signatureRequest, not request (that's your DTO)
+                        "Signature request sent to " + signer.getUser().getName()
+                )
+        );
+
+// 5. Return response
         return mapToResponse(signatureRequest, signers);
     }
 

@@ -14,4 +14,6 @@ import java.util.UUID;
 public interface SignerRepository extends JpaRepository <Signer, UUID>{
     List<Signer> findBySignatureRequest(SignatureRequest signatureRequest);
     Optional<Signer> findBySignatureRequestAndUser(SignatureRequest signatureRequest, User user);
+    List<Signer> findByUser(User user);
+    Optional<Signer> findBySignatureRequestAndSigningOrder(SignatureRequest signatureRequest, Integer signingOrder);
 }

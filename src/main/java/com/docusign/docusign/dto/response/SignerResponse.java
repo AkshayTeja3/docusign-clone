@@ -21,4 +21,5 @@ public class SignerResponse {
     private SignerStatus status;
     private Integer signingOrder;
     private LocalDateTime signedAt;
+
 }
