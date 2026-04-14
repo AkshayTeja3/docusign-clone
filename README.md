@@ -456,4 +456,4 @@ Step 9 — View the audit trail  →  GET  /api/audit/{signatureRequestId}
 
 ---
 
-> Built by Akshay Teja — a student backend project inspired by [DocuSign](https://www.docusign.com/)
+> Built by Akshay Teja — a backend project inspired by [DocuSign](https://www.docusign.com/)
