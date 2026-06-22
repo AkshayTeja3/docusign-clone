@@ -1,4 +1,4 @@
-'''DocuSign Backend Architecture Engine'''
+DocuSign Backend Architecture Engine
 
 A clean backend infrastructure clone inspired by the core workflow concepts behind digital signature platforms such as DocuSign.
 
@@ -10,30 +10,30 @@ The project focuses on modeling real-world business workflows, enforcing authori
 
 📋 Table of Contents
 
-· Tech Stack
-· System Architecture
-· Domain Model
-· Project Structure
-· Security & Defenses
-· Signing Workflows
-· Audit & Notification System
-· Controller & API Design
-· Service Layer Design
-· Production Gap Analysis & Planned Upgrades
-· Getting Started
+- Tech Stack
+- System Architecture
+- Domain Model
+- Project Structure
+- Security & Defenses
+- Signing Workflows
+- Audit & Notification System
+- Controller & API Design
+- Service Layer Design
+- Production Gap Analysis & Planned Upgrades
+- Getting Started
 
 ---
 
 🛠️ Tech Stack
 
-Technology Purpose Selection Rationale
-Java 17 Core Language Long-Term Support (LTS) release offering modern language features and strong type safety.
-Spring Boot Application Framework Production-oriented framework providing dependency injection, configuration management, and rapid application development.
-Spring Security + JWT Stateless Authentication Enables token-based authentication without maintaining server-side sessions.
-Spring Data JPA Object-Relational Mapping Simplifies persistence through repository abstractions and transaction support.
-PostgreSQL Relational Database Provides ACID guarantees and strong referential integrity for workflow state management.
-Lombok Boilerplate Reduction Reduces repetitive code through compile-time generation of common methods.
-Spring Events Event-Driven Communication Decouples auxiliary concerns such as auditing and notifications from core workflow execution.
+Technology| Purpose| Selection Rationale
+Java 17| Core Language| Long-Term Support (LTS) release offering modern language features and strong type safety.
+Spring Boot| Application Framework| Production-oriented framework providing dependency injection, configuration management, and rapid application development.
+Spring Security + JWT| Stateless Authentication| Enables token-based authentication without maintaining server-side sessions.
+Spring Data JPA| Object-Relational Mapping| Simplifies persistence through repository abstractions and transaction support.
+PostgreSQL| Relational Database| Provides ACID guarantees and strong referential integrity for workflow state management.
+Lombok| Boilerplate Reduction| Reduces repetitive code through compile-time generation of common methods.
+Spring Events| Event-Driven Communication| Decouples auxiliary concerns such as auditing and notifications from core workflow execution.
 
 ---
 
@@ -41,7 +41,6 @@ Spring Events Event-Driven Communication Decouples auxiliary concerns such as au
 
 The application follows a layered architecture designed to separate responsibilities and keep business workflows predictable and maintainable.
 
-```
 [ HTTP Controller Layer ]  --> Handles request parsing and authentication context.
 │
 [ Service Layer ]          --> Orchestrates business workflows and validation rules.
@@ -51,7 +50,6 @@ The application follows a layered architecture designed to separate responsibili
 [ Domain Layer ]           --> Entities, enums, and workflow state boundaries.
 │
 [ Event Layer ]            --> Handles audit and notification events.
-```
 
 Core workflow services publish application events whenever important business state transitions occur. Audit logging and notification creation subscribe to these events, allowing auxiliary concerns to remain decoupled from the primary signing workflow.
 
@@ -65,12 +63,12 @@ User
 
 The primary actor within the system.
 
-Implements Spring Security's UserDetails interface to integrate directly with the authentication layer.
+Implements Spring Security's "UserDetails" interface to integrate directly with the authentication layer.
 
 A single account may act as both:
 
-· Document Sender
-· Document Signer
+- Document Sender
+- Document Signer
 
 reflecting real-world usage where users can create and participate in signature workflows simultaneously.
 
@@ -84,7 +82,7 @@ The Document entity tracks ownership and storage metadata while remaining indepe
 
 Lifecycle States:
 
-· DRAFT → PENDING → COMPLETED
+DRAFT → PENDING → COMPLETED
 
 ---
 
@@ -96,8 +94,8 @@ It associates a document with one or more signers while tracking the overall com
 
 Lifecycle States:
 
-· PENDING → COMPLETED
-· PENDING → DECLINED
+PENDING → COMPLETED
+PENDING → DECLINED
 
 ---
 
@@ -107,9 +105,9 @@ Represents an individual's participation slot within a workflow.
 
 Encapsulates signer-specific metadata such as:
 
-· Signing Order
-· Signing Status
-· Signature Timestamp
+- Signing Order
+- Signing Status
+- Signature Timestamp
 
 This separation prevents workflow-specific state from polluting the global User entity.
 
@@ -121,8 +119,8 @@ Captures forensic evidence associated with a completed signature action.
 
 Stores:
 
-· Global UTC timestamp
-· Client IP address
+- Global UTC timestamp
+- Client IP address
 
 to provide an immutable record of signature execution.
 
@@ -150,9 +148,7 @@ Notifications maintain their own lifecycle and read/unread state independent of 
 
 To mitigate Broken Object-Level Authorization vulnerabilities, protected endpoints enforce ownership validation using Spring Security expressions and a custom evaluation component.
 
-```java
 @PreAuthorize("@documentSecurityEvaluator.isParticipant(#requestId, principal.username)")
-```
 
 This validation ensures that only authorized participants associated with a workflow may access protected resources.
 
@@ -160,13 +156,13 @@ This validation ensures that only authorized participants associated with a work
 
 2. Temporal Normalization (UTC Timeline)
 
-All audit and transactional timestamps use java.time.Instant rather than server-local time representations.
+All audit and transactional timestamps use "java.time.Instant" rather than server-local time representations.
 
 Benefits include:
 
-· Consistent global timestamps
-· Elimination of timezone ambiguity
-· Improved audit reliability
+- Consistent global timestamps
+- Elimination of timezone ambiguity
+- Improved audit reliability
 
 ---
 
@@ -176,13 +172,11 @@ Business workflows enforce explicit state transitions to prevent duplicate actio
 
 Example:
 
-```java
 if (signer.getStatus() == SignerStatus.DECLINED) {
     throw new IllegalStateException(
         "Business Logic Violation: This request has already been declined."
     );
 }
-```
 
 This prevents repeated workflow execution caused by duplicate submissions or invalid state mutations.
 
@@ -194,7 +188,6 @@ Persistence rules enforce structural consistency beneath the application layer.
 
 Example:
 
-```java
 @Table(
     name = "signers",
     uniqueConstraints = {
@@ -206,7 +199,6 @@ Example:
         )
     }
 )
-```
 
 This prevents invalid workflow configurations containing duplicate signing positions.
 
@@ -222,9 +214,9 @@ Each signer may complete their action independently without waiting for others.
 
 Suitable for:
 
-· Board approvals
-· Internal acknowledgements
-· Multi-party consent forms
+- Board approvals
+- Internal acknowledgements
+- Multi-party consent forms
 
 ---
 
@@ -234,9 +226,7 @@ Signers must execute their actions according to a predefined signing order.
 
 Example:
 
-```
 Signer #1 → Signer #2 → Signer #3
-```
 
 Attempts to sign out of order are rejected by workflow validation rules.
 
@@ -248,7 +238,6 @@ The ordering logic is enforced inside the workflow service layer rather than the
 
 Core services publish workflow events whenever significant state transitions occur.
 
-```
 [ Workflow Service ]
          │
          ▼
@@ -259,7 +248,6 @@ Core services publish workflow events whenever significant state transitions occ
          │
          └──► Notification Listener
                   └──► Notification Entry
-```
 
 This design keeps workflow execution independent from supporting concerns while maintaining a complete historical record of system activity.
 
@@ -267,67 +255,16 @@ This design keeps workflow execution independent from supporting concerns while 
 
 📦 Project Structure
 
-```
 src/main/java/com/docusign/docusign/
 ├── config/
-│   ├── SecurityConfig.java
-│   ├── JwtAuthenticationFilter.java
-│   └── AuditConfig.java
 ├── controller/
-│   ├── AuthController.java
-│   ├── DocumentController.java
-│   ├── SignatureRequestController.java
-│   ├── SignerWorkflowController.java
-│   ├── SigningEngineController.java
-│   └── NotificationController.java
 ├── domain/
-│   ├── User.java
-│   ├── Document.java
-│   ├── SignatureRequest.java
-│   ├── Signer.java
-│   ├── SigningProcess.java
-│   ├── AuditLog.java
-│   ├── Notification.java
-│   └── enums/
-│       ├── DocumentStatus.java
-│       ├── RequestStatus.java
-│       ├── SignerStatus.java
-│       └── NotificationType.java
 ├── dto/
 │   ├── request/
-│   │   ├── RegisterRequest.java
-│   │   ├── LoginRequest.java
-│   │   ├── DocumentUploadRequest.java
-│   │   └── SignatureRequestCreateRequest.java
 │   └── response/
-│       ├── AuthResponse.java
-│       ├── DocumentResponse.java
-│       ├── SignatureRequestResponse.java
-│       └── AuditResponse.java
 ├── event/
-│   ├── WorkflowEvent.java
-│   ├── AuditEventListener.java
-│   └── NotificationEventListener.java
 ├── repository/
-│   ├── UserRepository.java
-│   ├── DocumentRepository.java
-│   ├── SignatureRequestRepository.java
-│   ├── SignerRepository.java
-│   ├── AuditLogRepository.java
-│   └── NotificationRepository.java
-├── security/
-│   ├── CustomUserDetailsService.java
-│   ├── JwtTokenProvider.java
-│   └── DocumentSecurityEvaluator.java
 └── service/
-    ├── AuthService.java
-    ├── DocumentService.java
-    ├── SignatureRequestService.java
-    ├── SigningWorkflowService.java
-    ├── SigningEngineService.java
-    ├── AuditService.java
-    └── NotificationService.java
-```
 
 ---
 
@@ -335,82 +272,44 @@ src/main/java/com/docusign/docusign/
 
 Authentication
 
-Method Endpoint Description
-POST /api/auth/register Register new user account
-POST /api/auth/login Authenticate and receive JWT token
+POST /api/auth/register
+POST /api/auth/login
 
 ---
 
 Documents
 
-Method Endpoint Description
-POST /api/documents/upload Upload a new document
-GET /api/documents/{id} Retrieve document metadata
-GET /api/documents List all user documents
+POST /api/documents/upload
+GET  /api/documents/{id}
+GET  /api/documents
 
 ---
 
 Signature Requests
 
-Method Endpoint Description
-POST /api/signature-requests Create a new signing workflow
-GET /api/signature-requests/{id} Get workflow details
-GET /api/signature-requests List all workflows
+POST /api/signature-requests
+GET  /api/signature-requests/{id}
+GET  /api/signature-requests
 
 ---
 
 Signer Workflow
 
-Method Endpoint Description
-GET /api/signer-workflow/pending Get pending signing tasks
-POST /api/signer-workflow/requests/{requestId}/signers/{signerId}/decline Decline signing request
+GET  /api/signer-workflow/pending
+POST /api/signer-workflow/requests/{requestId}/signers/{signerId}/decline
 
 ---
 
 Signing Engine
 
-Method Endpoint Description
-POST /api/signing/{signerId}/sign Execute digital signature
+POST /api/signing/{signerId}/sign
 
 ---
 
 Audit & Notifications
 
-Method Endpoint Description
-GET /api/audit/{signatureRequestId} Retrieve audit trail
-GET /api/notifications Get user notifications
-
----
-
-🔧 Service Layer Design
-
-AuthService
-
-Handles user registration, authentication, and JWT token generation.
-
-DocumentService
-
-Manages document uploads, retrieval, and access control.
-
-SignatureRequestService
-
-Orchestrates the creation and management of signing workflows, including signer assignments and state transitions.
-
-SigningWorkflowService
-
-Coordinates parallel and sequential signing workflows, validating state transitions and enforcing order rules.
-
-SigningEngineService
-
-Executes the actual signing process, capturing forensic data and triggering audit events.
-
-AuditService
-
-Appends immutable audit entries for workflow events.
-
-NotificationService
-
-Creates and manages user notifications based on workflow state changes.
+GET /api/audit/{signatureRequestId}
+GET /api/notifications
 
 ---
 
@@ -480,39 +379,33 @@ Include workflow identifiers inside notification payloads to simplify client-sid
 
 Prerequisites
 
-· Java 17+
-· Maven 3.8+
-· PostgreSQL 14+
+- Java 17+
+- Maven 3.8+
+- PostgreSQL 14+
 
 Clone Repository
 
-```bash
 git clone https://github.com/AkshayTeja3/docusign-clone.git
 cd docusign-clone
-```
 
 Create Database
 
-```sql
 CREATE DATABASE docusign;
-```
 
 Configure Application Properties
 
-```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/docusign
 spring.datasource.username=your_username
 spring.datasource.password=your_password
+
 spring.jpa.hibernate.ddl-auto=update
+
 jwt.secret=your_secret
 jwt.expiration=86400000
-```
 
 Run Application
 
-```bash
 ./mvnw spring-boot:run
-```
 
 ---
 
