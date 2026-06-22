@@ -8,6 +8,8 @@ import com.docusign.docusign.dto.response.DocumentResponse;
 import com.docusign.docusign.repository.DocumentRepository;
 import com.docusign.docusign.repository.SignatureRequestRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,7 +30,7 @@ public class DocumentService {
 
     // method goes here
     public List<DocumentResponse> getUserDocuments(User user) {
-        return documentRepository.findByUploadedBy(user)  // gives List<Document>
+        return documentRepository.findByUploadedBy(user,org.springframework.data.domain.Pageable.unpaged())  // gives List<Document>
                 .stream()                                  // convert to stream
                 .map(document -> DocumentResponse.builder()  // convert each Document to DocumentResponse
                         .id(document.getId())
@@ -104,6 +106,15 @@ public class DocumentService {
 
         // Safe to execute hard or soft delete now
         documentRepository.delete(document);
+    }
+
+    public Page<DocumentResponse> getDocumentsForUser(User user, Pageable pageable) {
+        return documentRepository.findByUploadedBy(user, pageable)
+                .map(doc -> DocumentResponse.builder()
+                        .id(doc.getId())
+                        .fileName(doc.getFileName())
+                        .status(doc.getStatus())
+                        .build());
     }
 
 }

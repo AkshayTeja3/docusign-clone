@@ -11,12 +11,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 
-@Data
+
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table
+@Table(name = "signers", uniqueConstraints = {@UniqueConstraint(name = "uk_signature_request_signing_order", columnNames = {"signature_request_id", "signing_order"})})
+@Data
 public class Signer {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -39,4 +40,5 @@ public class Signer {
         this.status = SignerStatus.PENDING;
         this.signedAt=Instant.now();
     }
+
 }
