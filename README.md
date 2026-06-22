@@ -1,285 +1,412 @@
-# DocuSign Backend Architecture Engine
+DocuSign Backend Architecture Engine
 
-A clean, backend infrastructure clone of the digital signature platform DocuSign.
+A clean backend infrastructure clone inspired by the core workflow concepts behind digital signature platforms such as DocuSign.
 
-This engine orchestrates multi-party document signing lifecycles, implementing stateless authentication, sequential and parallel signing workflow state machines, event-driven audit logging, and transactional notification dispatching. Built using clean Domain-Driven Design (DDD) principles and defensive software engineering patterns, this project demonstrates how to structure real-world business logic, enforce data isolation, and handle asynchronous state transitions cleanly in a Spring Boot ecosystem.
+This backend engine orchestrates multi-party document signing workflows through stateless authentication, sequential and parallel signing state machines, event-driven audit logging, and decoupled notification processing.
 
-## 📋 Table of Contents
-- [Tech Stack](#-tech-stack)
-- [System Architecture](#-system-architecture)
-- [Domain Model](#-domain-model)
-- [Project Structure](#-project-structure)
-- [Security & Defenses](#-security--defenses)
-- [Signing Workflows](#-signing-workflows)
-- [Audit & Notification System](#-audit--notification-system)
-- [Controller & API Design](#-controller--api-design)
-- [Service Layer Design](#-service-layer-design)
-- [Production Gap Analysis & Planned Upgrades](#-production-gap-analysis--planned-upgrades)
-- [Getting Started](#-getting-started)
+The project focuses on modeling real-world business workflows, enforcing authorization boundaries, maintaining auditability, and structuring backend systems using clean separation of concerns within a Spring Boot ecosystem.
 
 ---
 
-## 🛠️ Tech Stack
+📋 Table of Contents
 
-| Technology | Purpose | Selection Rationale |
-| :--- | :--- | :--- |
-| **Java 17** | Core Language | Long-Term Support (LTS) release offering modern language semantics and robust type safety. |
-| **Spring Boot 4.0.x** | Application Framework | Production-ready runtime environment offering rapid dependency injection and standard auto-configuration engines. |
-| **Spring Security + JWT** | Stateless Authentication | Provides stateless `Bearer` token validation, decoupling server memory from active sessions to allow seamless horizontal scaling. |
-| **Spring Data JPA** | Object-Relational Mapping | Abstracts the persistence layer with clean repository interfaces and automated transaction tracking. |
-| **PostgreSQL** | Relational Database | Battle-tested engine utilized to enforce ACID properties and strict referential integrity across document states. |
-| **Lombok** | Boilerplate Reduction | Cleans up domain models by auto-generating getters, setters, and builders at compilation time. |
-| **Spring Events** | Event-Driven Architecture | Decouples secondary concerns (Audit, Notification) from the core transactional signing pipeline. |
-
----
-
-## 🏗️ System Architecture
-
-The application is structured around a clean, decoupled layered architecture to isolate concerns and enforce predictability:
-
-
-```
-
-[ HTTP Controller Layer ]  --> Receives HTTP data, extracts protocol metadata, delegates instantly.
-│
-[ Service Core Layer ]     --> Orchestrates transactional business rules and process flows.
-│
-[ Repository Access Layer] --> Abstracts SQL operations via Spring Data JPA.
-│
-[ Domain Core Layer ]      --> Rich entities, enums, lifecycle state machine boundaries.
-│
-[ Async Event Layer ]      --> Listens to non-blocking system broadcasts asynchronously.
-
-```
-
-The system employs an **Event-Driven Architecture (EDA)** for auxiliary operations. Core workflow services broadcast transactional changes via Spring's `ApplicationEventPublisher`. Decoupled listeners catch these signals asynchronously to stream audit logs and notifications, ensuring the main application thread remains highly performant and free of network I/O blockages.
+- Tech Stack
+- System Architecture
+- Domain Model
+- Project Structure
+- Security & Defenses
+- Signing Workflows
+- Audit & Notification System
+- Controller & API Design
+- Service Layer Design
+- Production Gap Analysis & Planned Upgrades
+- Getting Started
 
 ---
 
-## 🗂️ Domain Model
+🛠️ Tech Stack
 
-### User
-The primary actor. Implements Spring Security's `UserDetails` natively to streamline credential evaluation. A single `User` record gracefully maps to both a Sender and a Signer relationship simultaneously, mirroring the real-world operational requirement where a single account needs to dispatch contracts while signing incoming requests.
-
-### Document
-A pure storage tracking unit. Manages metadata regarding uploaded file states. To enforce strict decoupling, a `Document` entity only retains awareness of its original uploader; it contains no logic regarding who needs to sign it. 
-* **Lifecycle States:** `DRAFT` ➔ `PENDING` ➔ `COMPLETED`
-
-### SignatureRequest
-The central aggregate root orchestrating the contract lifecycle. Links a specific `Document` to an array of assigned signers and tracks global completion markers.
-* **Lifecycle States:** `PENDING` ➔ `COMPLETED` / `DECLINED`
-
-### Signer
-Represents a specific person's distinct participation slot inside an active workflow sequence. It encapsulates metadata specific to that unique interaction—such as `signingOrder`, `status`, and `signedAt`—preventing individual state pollution on the universal `User` profile.
-
-### SigningProcess
-Captures the forensic, immutable evidence required for legal non-repudiation. Records the exact global UTC timestamp and the client network IP address at the definitive millisecond of digital signature execution.
-
-### AuditLog
-An append-only, chronologically ascending data ledger tracking historical system events. Records are structured as immutable fragments, allowing legal/forensic investigators to trace the unbroken lifecycle of any given document.
-
-### Notification
-Transactional alerts distributed to users when state changes occur. Managed in a separate table to trace read/unread conditions per recipient account.
+Technology| Purpose| Selection Rationale
+Java 17| Core Language| Long-Term Support (LTS) release offering modern language features and strong type safety.
+Spring Boot| Application Framework| Production-oriented framework providing dependency injection, configuration management, and rapid application development.
+Spring Security + JWT| Stateless Authentication| Enables token-based authentication without maintaining server-side sessions.
+Spring Data JPA| Object-Relational Mapping| Simplifies persistence through repository abstractions and transaction support.
+PostgreSQL| Relational Database| Provides ACID guarantees and strong referential integrity for workflow state management.
+Lombok| Boilerplate Reduction| Reduces repetitive code through compile-time generation of common methods.
+Spring Events| Event-Driven Communication| Decouples auxiliary concerns such as auditing and notifications from core workflow execution.
 
 ---
 
-## 🔒 Security & Defenses
+🏗️ System Architecture
 
-### 1. Method-Level SpEL Security Filters (BOLA Defense)
-To prevent **Broken Object-Level Authorization (BOLA / IDOR)** vulnerabilities, the system intercepts traffic at the Controller threshold using Spring Security's `@PreAuthorize` annotation paired with a custom evaluation bean:
-```java
+The application follows a layered architecture designed to separate responsibilities and keep business workflows predictable and maintainable.
+
+[ HTTP Controller Layer ]  --> Handles request parsing and authentication context.
+│
+[ Service Layer ]          --> Orchestrates business workflows and validation rules.
+│
+[ Repository Layer ]       --> Encapsulates persistence operations.
+│
+[ Domain Layer ]           --> Entities, enums, and workflow state boundaries.
+│
+[ Event Layer ]            --> Handles audit and notification events.
+
+Core workflow services publish application events whenever important business state transitions occur. Audit logging and notification creation subscribe to these events, allowing auxiliary concerns to remain decoupled from the primary signing workflow.
+
+This design keeps business services focused on workflow execution while allowing supporting functionality to evolve independently.
+
+---
+
+🗂️ Domain Model
+
+User
+
+The primary actor within the system.
+
+Implements Spring Security's "UserDetails" interface to integrate directly with the authentication layer.
+
+A single account may act as both:
+
+- Document Sender
+- Document Signer
+
+reflecting real-world usage where users can create and participate in signature workflows simultaneously.
+
+---
+
+Document
+
+Represents uploaded document metadata.
+
+The Document entity tracks ownership and storage metadata while remaining independent from workflow participation logic.
+
+Lifecycle States:
+
+DRAFT → PENDING → COMPLETED
+
+---
+
+SignatureRequest
+
+The central workflow aggregate responsible for coordinating document signing activities.
+
+It associates a document with one or more signers while tracking the overall completion state of the workflow.
+
+Lifecycle States:
+
+PENDING → COMPLETED
+PENDING → DECLINED
+
+---
+
+Signer
+
+Represents an individual's participation slot within a workflow.
+
+Encapsulates signer-specific metadata such as:
+
+- Signing Order
+- Signing Status
+- Signature Timestamp
+
+This separation prevents workflow-specific state from polluting the global User entity.
+
+---
+
+SigningProcess
+
+Captures forensic evidence associated with a completed signature action.
+
+Stores:
+
+- Global UTC timestamp
+- Client IP address
+
+to provide an immutable record of signature execution.
+
+---
+
+AuditLog
+
+An append-only historical ledger that records significant system events.
+
+Designed to support operational traceability and lifecycle reconstruction.
+
+---
+
+Notification
+
+Represents user-facing alerts generated by workflow state transitions.
+
+Notifications maintain their own lifecycle and read/unread state independent of workflow execution.
+
+---
+
+🔒 Security & Defenses
+
+1. Method-Level Authorization (BOLA / IDOR Mitigation)
+
+To mitigate Broken Object-Level Authorization vulnerabilities, protected endpoints enforce ownership validation using Spring Security expressions and a custom evaluation component.
+
 @PreAuthorize("@documentSecurityEvaluator.isParticipant(#requestId, principal.username)")
 
-```
+This validation ensures that only authorized participants associated with a workflow may access protected resources.
 
-This intercepts requests before invoking service logic, ensuring the authenticated principal is explicitly listed as either the original sender or an active, designated signer on the requested document UUID.
+---
 
-### 2. Temporal Normalization (`Instant` UTC Timeline)
+2. Temporal Normalization (UTC Timeline)
 
-To ensure absolute consistency across distributed server nodes or multi-region cloud clusters, the application bypasses regional machine wall clocks (`LocalDateTime`). All transactional and audit fields are bound directly to **`java.time.Instant`**. This stores records relative to a global UTC epoch anchor point, ensuring legal audit validation can withstand timestamp discrepancies.
+All audit and transactional timestamps use "java.time.Instant" rather than server-local time representations.
 
-### 3. Idempotent State Machine Controls
+Benefits include:
 
-The business tier features protective logic traps to protect against race conditions, duplicate form submissions, or malicious API endpoint spamming:
+- Consistent global timestamps
+- Elimination of timezone ambiguity
+- Improved audit reliability
 
-```java
+---
+
+3. Workflow State Validation
+
+Business workflows enforce explicit state transitions to prevent duplicate actions and invalid lifecycle progression.
+
+Example:
+
 if (signer.getStatus() == SignerStatus.DECLINED) {
-    throw new IllegalStateException("Business Logic Violation: This request has already been declined.");
+    throw new IllegalStateException(
+        "Business Logic Violation: This request has already been declined."
+    );
 }
 
-```
-
-If an actor multi-clicks or automates a request execution, the state machine hits this threshold, triggers a clean fast-fail block, and avoids redundant database flushes, duplicate audit streams, or system resource exhaustion.
-
-### 4. Database-Level Structural Integrity
-
-To prevent logical sequence corruption at the hardware layer, the persistence layer enforces a composite unique constraint on the `Signer` schema mapping:
-
-```java
-@Table(name = "signers", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"signature_request_id", "signing_order"})
-})
-
-```
-
-This blocks invalid configuration requests from ever creating overlapping signing slots within a sequential workflow, providing a physical safeguard beneath the application logic layer.
+This prevents repeated workflow execution caused by duplicate submissions or invalid state mutations.
 
 ---
 
-## 🔄 Signing Workflows
+4. Database-Level Integrity Constraints
 
-### PARALLEL Workflow
+Persistence rules enforce structural consistency beneath the application layer.
 
-All designated signers receive the document broadcast simultaneously and can sign independently without sequence conditions. Perfect for corporate resolutions or shareholder approval cycles.
+Example:
 
-### SEQUENTIAL Workflow
+@Table(
+    name = "signers",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            columnNames = {
+                "signature_request_id",
+                "signing_order"
+            }
+        )
+    }
+)
 
-Enforces a strict cascading hierarchy dictated by the `signingOrder` integer property. For instance, Signer #2 cannot execute their signature block until Signer #1 has successfully authorized the document. Attempting to sign prematurely triggers a validation exception: `"Waiting for previous signer to sign first."`
-
-The sequencing boundaries are validated within `SignerWorkflowService.validateSigningOrder()` so that order checking lives natively as a core workflow domain contract rather than a peripheral data access check.
-
----
-
-## 📡 Audit & Notification System
-
-Both components execute on top of an decoupled asynchronous pipeline fed by a single `AuditEvent`.
-
-```
-[ Core Service Event ] ➔ Broadcasts AuditEvent
-                             │
-                             ├──► [ AuditLogListener ] ──► Compiles Forensics to Database
-                             └──► [ NotificationListener ] ──► Dispatches Recipient Alert
-
-```
-
-Because these processors execute inside an independent async thread context, database execution latency or external notifications will never block or degrade the performance of the core signing transaction thread.
+This prevents invalid workflow configurations containing duplicate signing positions.
 
 ---
 
-## 📦 Project Structure
+🔄 Signing Workflows
 
-```
+Parallel Workflow
+
+All designated signers receive the request simultaneously.
+
+Each signer may complete their action independently without waiting for others.
+
+Suitable for:
+
+- Board approvals
+- Internal acknowledgements
+- Multi-party consent forms
+
+---
+
+Sequential Workflow
+
+Signers must execute their actions according to a predefined signing order.
+
+Example:
+
+Signer #1 → Signer #2 → Signer #3
+
+Attempts to sign out of order are rejected by workflow validation rules.
+
+The ordering logic is enforced inside the workflow service layer rather than the persistence layer.
+
+---
+
+📡 Audit & Notification System
+
+Core services publish workflow events whenever significant state transitions occur.
+
+[ Workflow Service ]
+         │
+         ▼
+   Audit Event
+         │
+         ├──► Audit Listener
+         │        └──► AuditLog Entry
+         │
+         └──► Notification Listener
+                  └──► Notification Entry
+
+This design keeps workflow execution independent from supporting concerns while maintaining a complete historical record of system activity.
+
+---
+
+📦 Project Structure
+
 src/main/java/com/docusign/docusign/
-├── config/                  # Security filter configuration, JWT handlers, encryption beans
-├── controller/              # REST controllers (strict input parsing, metadata mapping)
-├── domain/                  # Rich database entities, status enums, JPA lifecycles
-├── dto/                     # Decoupled Request/Response data transfer blueprints
+├── config/
+├── controller/
+├── domain/
+├── dto/
 │   ├── request/
 │   └── response/
-├── event/                   # AuditEvent payload models and publisher wrappers
-├── repository/              # Spring Data JPA data persistence contracts
-└── service/                 # Transactional business orchestration pipelines
-
-```
+├── event/
+├── repository/
+└── service/
 
 ---
 
-## 📡 API Endpoints
+📡 API Endpoints
 
-### 🔐 Authentication (`/api/auth`)
+Authentication
 
-* `POST /api/auth/register` - Registers an account profile. *(Public)*
-* `POST /api/auth/login` - Authenticates credentials; yields JWT authorization header. *(Public)*
-
-### 📄 Documents (`/api/documents`)
-
-* `POST /api/documents/upload` - Uploads raw binary files via `multipart/form-data`.
-* `GET /api/documents/{id}` - Retrieves a specific metadata file record by ID.
-* `GET /api/documents?page=0&size=10&sort=createdAt,desc` - Lists paginated file assets uploaded by the authenticated user.
-
-### ✍️ Signature Requests (`/api/signature-requests`)
-
-* `POST /api/signature-requests` - Configures and creates a new multi-party signing workflow.
-* `GET /api/signature-requests/{id}` - Retrieves a signature request tracking object with full signer matrices.
-* `GET /api/signature-requests` - Displays history of all workflows initiated by the caller.
-
-### 🖊️ Signer Interface (`/api/signer-workflow`)
-
-* `GET /api/signer-workflow/pending` - Returns a custom list of pending signature actions assigned to the logged-in user.
-* `POST /api/signer-workflow/requests/{requestId}/signers/{signerId}/decline` - Executes defensive decline logic to reject a signing contract.
-
-### ✅ Signing Engine (`/api/signing`)
-
-* `POST /api/signing/{signerId}/sign` - Records the forensic metadata of signature confirmation (IP, time-anchor).
-
-### 📋 Audits & Alerts
-
-* `GET /api/audit/{signatureRequestId}` - Retrieves complete historical immutable ledger trails.
-* `GET /api/notifications` - Fetches comprehensive client notifications.
+POST /api/auth/register
+POST /api/auth/login
 
 ---
 
-## ⚠️ Production Gap Analysis & Planned Upgrades
+Documents
 
-While the backend engine features a robust architectural core, the following optimizations are tracked for high-scale readiness:
-
-### 🔴 Core Infrastructure Priorities
-
-* **Storage Abstraction:** File handling currently targets the local host server filesystem. A migration strategy is slated to replace the local stream processor with AWS S3 or equivalent cloud object storage, swapping internal local path outputs with short-lived pre-signed download URLs.
-* **Distributed Audit Splitting:** Transition `AuditLogService` into a fully isolated process line running out-of-band to prevent downstream relational logging locks from impacting execution paths during peak core execution intervals.
-
-### 🔒 Expanded Authentication Controls
-
-* **Rate-Limiting (Brute-Force Prevention):** Implement an API rate-limiting tier using a token bucket filter approach (e.g., Spring Cloud Gateway RateLimiter or Bucket4j) to prevent automated login credential stuffing.
-* **Strict Email Verification Gates:** Activate the latent `isVerified` boolean attribute on user profiles, blocking the login filter from issuing active JWT tokens until an out-of-band email loop completes verification.
-
-### 💾 Data Integrity Controls
-
-* **Application Duplication Guardrails:** Add a pre-save check (`userRepository.existsByEmail()`) into the registration service pipeline to intercept email collisions and translate SQL state violations into uniform client messages.
-* **Empty Assignment Constraints:** Introduce collection validation handlers (`@NotEmpty`) to reject incoming `SignatureRequest` payloads containing empty signer blocks, preventing dead-state workflows.
-
-### 🖥️ API Contract Enhancements
-
-* **Token Lifecycle Transparency:** Expand `AuthResponse` payloads to declare an explicit token expiration timestamp in milliseconds (`expiresIn`), allowing upstream client applications to predictably manage token refresh schedules without decoding JWT claims manually.
-* **Notification Deep-Linking:** Enhance `NotificationResponse` attributes to expose the explicit `signatureRequestId` property, enabling direct client routing to actionable document views upon interaction with an alert banner.
+POST /api/documents/upload
+GET  /api/documents/{id}
+GET  /api/documents
 
 ---
 
-## 🚀 Getting Started
+Signature Requests
 
-### Prerequisites
-
-* Java 17+
-* Maven 3.8+
-* PostgreSQL 14+
-
-### Installation & Run Steps
-
-1. **Clone the Source Engine:**
-
-```bash
-   git clone [https://github.com/AkshayTeja3/docusign-clone.git](https://github.com/AkshayTeja3/docusign-clone.git)
-   cd docusign-clone
-
-```
-
-2. **Provision the Relational Engine:**
-
-```sql
-   CREATE DATABASE docusign;
-
-```
-
-3. **Configure the Properties Stack (`src/main/resources/application.properties`):**
-
-```properties
-   spring.datasource.url=jdbc:postgresql://localhost:5432/docusign
-   spring.datasource.username=your_postgres_username
-   spring.datasource.password=your_postgres_password
-   spring.jpa.hibernate.ddl-auto=update
-   
-   jwt.secret=your_base64_encoded_hmac_sha256_secret_key_string
-   jwt.expiration=86400000
-
-```
-
-4. **Compile and Execute:**
-
-```bash
-   ./mvnw spring-boot:run
-
-```
+POST /api/signature-requests
+GET  /api/signature-requests/{id}
+GET  /api/signature-requests
 
 ---
 
-*Developed as a clean, defensive digital signature backend infrastructure project.*
+Signer Workflow
+
+GET  /api/signer-workflow/pending
+POST /api/signer-workflow/requests/{requestId}/signers/{signerId}/decline
+
+---
+
+Signing Engine
+
+POST /api/signing/{signerId}/sign
+
+---
+
+Audit & Notifications
+
+GET /api/audit/{signatureRequestId}
+GET /api/notifications
+
+---
+
+⚠️ Production Gap Analysis & Planned Upgrades
+
+While the project demonstrates a strong architectural foundation, the following enhancements remain for production-scale readiness.
+
+🔴 Infrastructure Priorities
+
+Storage Abstraction
+
+Replace local filesystem storage with cloud object storage (AWS S3 or equivalent) and serve documents through pre-signed URLs.
+
+Distributed Audit Processing
+
+Move audit persistence into an isolated processing pipeline to further decouple workflow execution from historical record generation.
+
+---
+
+🔴 Data Consistency & Transaction Boundaries
+
+Workflow Creation Atomicity
+
+Signature request creation currently performs multiple persistence operations across related entities.
+
+A future enhancement will introduce explicit transaction boundaries to guarantee atomic creation of requests and signer assignments under failure conditions.
+
+---
+
+🔒 Authentication Enhancements
+
+Rate Limiting
+
+Introduce API rate limiting using Bucket4j or gateway-level throttling.
+
+Email Verification
+
+Require successful email verification before JWT issuance.
+
+---
+
+💾 Validation Improvements
+
+Duplicate Registration Checks
+
+Add application-level duplicate email validation before persistence.
+
+Empty Signer Protection
+
+Reject workflow requests that contain empty signer collections.
+
+---
+
+🖥️ API Contract Enhancements
+
+Token Expiration Metadata
+
+Expose expiration information within authentication responses.
+
+Notification Deep Linking
+
+Include workflow identifiers inside notification payloads to simplify client-side navigation.
+
+---
+
+🚀 Getting Started
+
+Prerequisites
+
+- Java 17+
+- Maven 3.8+
+- PostgreSQL 14+
+
+Clone Repository
+
+git clone https://github.com/AkshayTeja3/docusign-clone.git
+cd docusign-clone
+
+Create Database
+
+CREATE DATABASE docusign;
+
+Configure Application Properties
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/docusign
+spring.datasource.username=your_username
+spring.datasource.password=your_password
+
+spring.jpa.hibernate.ddl-auto=update
+
+jwt.secret=your_secret
+jwt.expiration=86400000
+
+Run Application
+
+./mvnw spring-boot:run
+
+---
+
+Developed as a backend engineering project focused on workflow orchestration, authorization boundaries, auditability, and clean service-layer design.
