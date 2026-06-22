@@ -10,6 +10,7 @@ import com.docusign.docusign.repository.SignerRepository;
 import com.docusign.docusign.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -69,23 +70,34 @@ public class SignerWorkflowService {
     }
 
     // 3. Decline a request
+    @Transactional
     public SignerResponse declineRequest(UUID signerId, User user) {
         Signer signer = signerRepository.findById(signerId)
                 .orElseThrow(() -> new RuntimeException("Signer not found"));
 
-        // make sure this user is the actual signer
+        // 1. Authorization Guard (Your excellent work)
         if (!signer.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("You are not authorized to decline this request");
         }
 
-        // change status to declined
+        // 2. 🎯 CHAOS TRAP: Defend against the Infinite Rejection Loop!
+        if (signer.getStatus() == SignerStatus.DECLINED) {
+            throw new IllegalStateException("This signing request has already been declined.");
+        }
+        if (signer.getStatus() == SignerStatus.SIGNED) {
+            throw new IllegalStateException("Cannot decline a document that has already been legally signed.");
+        }
+
+        // 3. Mutate internal state safely
         signer.setStatus(SignerStatus.DECLINED);
-        signerRepository.save(signer);
 
-        // also update the overall signature request status
-        signer.getSignatureRequest().setStatus(SignatureRequestStatus.DECLINED);
-        signatureRequestRepository.save(signer.getSignatureRequest());
+        // 4. Update the overall signature request status securely
+        if (signer.getSignatureRequest() != null) {
+            signer.getSignatureRequest().setStatus(SignatureRequestStatus.DECLINED);
+            // NOTE: signatureRequestRepository.save() removed. Hibernate handles this automatically via dirty checking!
+        }
 
+        // 5. Fire the audit event ONCE (Safe from event spamming now!)
         auditEventPublisher.publish(
                 AuditAction.SIGNER_DECLINED,
                 user,
@@ -93,6 +105,7 @@ public class SignerWorkflowService {
                 signer.getUser().getName() + " declined the signing request"
         );
 
+        // NOTE: signerRepository.save() removed. Managed entities flush changes automatically on commit.
         return SignerResponse.builder()
                 .id(signer.getId())
                 .userName(signer.getUser().getName())

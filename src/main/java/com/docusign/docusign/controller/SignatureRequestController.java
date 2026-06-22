@@ -7,6 +7,7 @@ import com.docusign.docusign.dto.response.SignatureRequestResponse;
 import com.docusign.docusign.service.SignatureRequestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,11 +29,13 @@ public class SignatureRequestController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@documentSecurityEvaluator.isParticipant(#requestId, principal.username)")
     public ResponseEntity<SignatureRequestResponse> getSignatureRequest(@PathVariable UUID id) {
         return ResponseEntity.ok(signatureRequestService.getSignatureRequest(id));
     }
 
     @GetMapping
+    @PreAuthorize("@documentSecurityEvaluator.isParticipant(#requestId, principal.username)")
     public ResponseEntity<List<SignatureRequestResponse>> getUserSignatureRequests(
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(signatureRequestService.getUserSignatureRequests(user));

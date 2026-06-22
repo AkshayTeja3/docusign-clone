@@ -42,4 +42,6 @@ public class DocumentController {
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(documentService.getUserDocuments(user));
     }
+
+
 }

@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -32,9 +33,10 @@ public class Signer {
     @Column(nullable=false)
     private Integer signingOrder;
     @Column
-    private LocalDateTime signedAt;
+    private Instant signedAt;
     @PrePersist
     public void prePersist() {
         this.status = SignerStatus.PENDING;
+        this.signedAt=Instant.now();
     }
 }

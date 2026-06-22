@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -25,7 +26,7 @@ public class Document {
     @Column(nullable=false)
     private DocumentStatus status;
     @Column(nullable=false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     @ManyToOne
     @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
@@ -33,7 +34,7 @@ public class Document {
     private String fileName;
     @PrePersist
     public void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
         this.status = DocumentStatus.DRAFT;
     }
 }

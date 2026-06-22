@@ -10,7 +10,8 @@ import com.docusign.docusign.repository.SigningProcessRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.*;
+
 import java.util.UUID;
 
 @Service
@@ -44,14 +45,14 @@ public class SigningProcessService {
 
         // 5. Update signer status
         signer.setStatus(SignerStatus.SIGNED);
-        signer.setSignedAt(LocalDateTime.now());
+        signer.setSignedAt(Instant.now());
         signerRepository.save(signer);
 
         // 6. Record the signing process
         SigningProcess process = SigningProcess.builder()
                 .signer(signer)
                 .signatureRequest(signer.getSignatureRequest())
-                .signedAt(signer.getSignedAt())
+                .signedAt((Instant.from(signer.getSignedAt())))
                 .ipAddress(ipAddress)
                 .build();
         signingProcessRepository.save(process);
@@ -71,7 +72,7 @@ public class SigningProcessService {
                 .signerId(signer.getId())
                 .signerName(signer.getUser().getName())
                 .signatureRequestId(signer.getSignatureRequest().getId())
-                .signedAt(process.getSignedAt())
+                .signedAt(Instant.from(process.getSignedAt()))
                 .ipAddress(process.getIpAddress())
                 .build();
 

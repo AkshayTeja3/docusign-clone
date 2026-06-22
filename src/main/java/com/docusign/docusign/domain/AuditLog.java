@@ -3,6 +3,7 @@ package com.docusign.docusign.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -35,10 +36,10 @@ public class AuditLog {
     private String details;         // e.g. "Signed from IP 192.168.1.1"
 
     @Column(nullable = false)
-    private LocalDateTime timestamp;
+    private Instant timestamp;
 
     @PrePersist
     public void prePersist() {
-        this.timestamp = LocalDateTime.now();
+        this.timestamp = Instant.now();
     }
 }

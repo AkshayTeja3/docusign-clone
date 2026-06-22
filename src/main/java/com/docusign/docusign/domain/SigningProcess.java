@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.time.*;
 
 @Entity
 @Table(name = "signing_process")
@@ -28,7 +29,7 @@ public class SigningProcess {
     private SignatureRequest signatureRequest;
 
     @Column(nullable = false)
-    private LocalDateTime signedAt;
+    private Instant signedAt;
 
     @Column(nullable = false)
     private String ipAddress;

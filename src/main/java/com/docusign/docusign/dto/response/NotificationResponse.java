@@ -13,5 +13,5 @@ public class NotificationResponse {
     private UUID id;
     private String message;
     private Boolean isRead;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 }

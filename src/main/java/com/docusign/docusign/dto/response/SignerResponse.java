@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +21,6 @@ public class SignerResponse {
     private String userName;
     private SignerStatus status;
     private Integer signingOrder;
-    private LocalDateTime signedAt;
+    private Instant signedAt;
 
 }

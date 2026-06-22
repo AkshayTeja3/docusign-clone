@@ -43,7 +43,7 @@ public class User implements UserDetails {
     private Boolean isVerified;     // the "validated" flag you mentioned
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public enum UserRole {
         SENDER,
@@ -52,7 +52,7 @@ public class User implements UserDetails {
 
     @PrePersist
     public void prePersist() {
-        this.createdAt = LocalDateTime.now();  // auto set the time they registered
+        this.createdAt = Instant.now();  // auto set the time they registered
         this.isVerified = false;  // every new user starts as NOT verified
 
     }

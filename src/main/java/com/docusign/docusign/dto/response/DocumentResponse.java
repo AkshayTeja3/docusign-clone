@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ public class DocumentResponse {
     private String fileName;
     private String filePath;
     private DocumentStatus status;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private String uploadedBy;
 
 

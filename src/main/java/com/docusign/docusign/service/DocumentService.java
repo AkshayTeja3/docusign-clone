@@ -1,16 +1,21 @@
 package com.docusign.docusign.service;
 
 import com.docusign.docusign.domain.Document;
+import com.docusign.docusign.domain.SignatureRequest;
+import com.docusign.docusign.domain.SignatureRequestStatus;
 import com.docusign.docusign.domain.User;
 import com.docusign.docusign.dto.response.DocumentResponse;
 import com.docusign.docusign.repository.DocumentRepository;
+import com.docusign.docusign.repository.SignatureRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.*;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +24,7 @@ import java.util.UUID;
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
+    private final SignatureRequestRepository signatureRequestRepository;
 
     // method goes here
     public List<DocumentResponse> getUserDocuments(User user) {
@@ -29,7 +35,7 @@ public class DocumentService {
                         .fileName(document.getFileName())
                         .filePath(document.getFilePath())
                         .status(document.getStatus())
-                        .createdAt(document.getCreatedAt())
+                        .createdAt(Instant.from(document.getCreatedAt()))
                         .uploadedBy(document.getUploadedBy().getName())
                         .build()
                 )
@@ -63,7 +69,7 @@ public class DocumentService {
                 .fileName(document.getFileName())
                 .filePath(document.getFilePath())
                 .status(document.getStatus())
-                .createdAt(document.getCreatedAt())
+                .createdAt(Instant.from(document.getCreatedAt()))
                 .uploadedBy(user.getName())
                 .build();
     }
@@ -76,9 +82,28 @@ public class DocumentService {
                 .fileName(document.getFileName())
                 .filePath(document.getFilePath())
                 .status(document.getStatus())
-                .createdAt(document.getCreatedAt())
+                .createdAt(Instant.from(document.getCreatedAt()))
                 .uploadedBy(document.getUploadedBy().getName())
                 .build();
+
+
+    }
+
+    @Transactional
+    public void deleteDocument(UUID documentId, User sender) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document target not found"));
+
+        // 🎯 CHAOS TRAP: Check for active signature lifecycles linked to this document
+        List<SignatureRequest> activeRequests = signatureRequestRepository.findByDocumentAndStatus(
+                document, SignatureRequestStatus.PENDING);
+
+        if (!activeRequests.isEmpty()) {
+            throw new IllegalStateException("Cannot delete a document associated with an active, pending signature workflow. Revoke the signature requests first!");
+        }
+
+        // Safe to execute hard or soft delete now
+        documentRepository.delete(document);
     }
 
 }

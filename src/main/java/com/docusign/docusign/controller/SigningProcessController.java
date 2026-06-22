@@ -6,6 +6,7 @@ import com.docusign.docusign.service.SigningProcessService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +27,7 @@ public class SigningProcessController {
      * Captures IP from request, validates order, records signing process
      */
     @PostMapping("/{signerId}/sign")
+    @PreAuthorize("@documentSecurityEvaluator.isParticipant(#requestId, principal.username)")
     public ResponseEntity<SigningProcessResponse> signDocument(
             @PathVariable UUID signerId,
             @AuthenticationPrincipal User user,
