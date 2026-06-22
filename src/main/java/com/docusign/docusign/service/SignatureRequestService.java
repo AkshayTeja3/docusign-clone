@@ -47,10 +47,12 @@ public class SignatureRequestService {
         signatureRequestRepository.save(signatureRequest);
 
         // 4. Create and save each Signer
+        // 4. Create and save each Signer
         List<Signer> signers = request.getSigners().stream()
                 .map(signerRequest -> {
-                    User user = userRepository.findById(signerRequest.getUserId())
-                            .orElseThrow(() -> new RuntimeException("Signer not found"));
+                    // 🎯 FIXED: Look up the user by email instead of the null ID field
+                    User user = userRepository.findByEmail(signerRequest.getEmail())
+                            .orElseThrow(() -> new RuntimeException("Signer with email " + signerRequest.getEmail() + " not found"));
                     return Signer.builder()
                             .signatureRequest(signatureRequest)
                             .user(user)

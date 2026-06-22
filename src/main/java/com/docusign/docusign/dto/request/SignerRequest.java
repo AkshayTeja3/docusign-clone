@@ -13,4 +13,5 @@ import java.util.UUID;
 public class SignerRequest {
     private UUID userId;
     private Integer signingOrder;
+    private String Email;
 }

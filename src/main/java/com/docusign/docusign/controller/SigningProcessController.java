@@ -8,10 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -22,13 +19,11 @@ public class SigningProcessController {
 
     private final SigningProcessService signingProcessService;
 
-    /**
-     * POST /api/signing/{signerId}/sign
-     * Captures IP from request, validates order, records signing process
-     */
-    @PostMapping("/{signerId}/sign")
+    // 🎯 FIXED: Standardized path mapping to provide BOTH parameters so SpEL can read #requestId safely
+    @PostMapping("/requests/{requestId}/signers/{signerId}/sign")
     @PreAuthorize("@documentSecurityEvaluator.isParticipant(#requestId, principal.username)")
     public ResponseEntity<SigningProcessResponse> signDocument(
+            @PathVariable UUID requestId,
             @PathVariable UUID signerId,
             @AuthenticationPrincipal User user,
             HttpServletRequest request) {

@@ -1,6 +1,5 @@
 package com.docusign.docusign.service;
 
-
 import com.docusign.docusign.domain.*;
 import com.docusign.docusign.dto.response.SigningProcessResponse;
 import com.docusign.docusign.event.AuditEventPublisher;
@@ -9,9 +8,9 @@ import com.docusign.docusign.repository.SignerRepository;
 import com.docusign.docusign.repository.SigningProcessRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.*;
-
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -24,6 +23,7 @@ public class SigningProcessService {
     private final SigningProcessRepository signingProcessRepository;
     private final SignerWorkflowService signerWorkflowService;
 
+    @Transactional // ✅ Added to ensure the entire state transition commits as a single atomic unit
     public SigningProcessResponse signDocument(UUID signerId, User user, String ipAddress) {
 
         // 1. Fetch signer
@@ -48,34 +48,37 @@ public class SigningProcessService {
         signer.setSignedAt(Instant.now());
         signerRepository.save(signer);
 
+        // 🎯 FIX: Pull the parent request reference directly from the entity layer instead of controller arguments
+        SignatureRequest signatureRequest = signer.getSignatureRequest();
+
         // 6. Record the signing process
         SigningProcess process = SigningProcess.builder()
                 .signer(signer)
-                .signatureRequest(signer.getSignatureRequest())
-                .signedAt((Instant.from(signer.getSignedAt())))
+                .signatureRequest(signatureRequest)
+                .signedAt(signer.getSignedAt())
                 .ipAddress(ipAddress)
                 .build();
         signingProcessRepository.save(process);
 
+        // ✅ Broadcast Signer Action Event
         auditEventPublisher.publish(
                 AuditAction.SIGNER_SIGNED,
                 user,
-                signer.getSignatureRequest(),
-                "Signed from IP: " + ipAddress
+                signatureRequest,
+                "Document officially signed by " + user.getName() + " from IP: " + ipAddress
         );
 
         // 7. Check if all signers are done → finalize the request
-        checkAndFinalizeRequest(signer.getSignatureRequest());
+        checkAndFinalizeRequest(signatureRequest);
 
         return SigningProcessResponse.builder()
                 .signingProcessId(process.getId())
                 .signerId(signer.getId())
                 .signerName(signer.getUser().getName())
-                .signatureRequestId(signer.getSignatureRequest().getId())
-                .signedAt(Instant.from(process.getSignedAt()))
+                .signatureRequestId(signatureRequest.getId())
+                .signedAt(process.getSignedAt())
                 .ipAddress(process.getIpAddress())
                 .build();
-
     }
 
     // Finalize document if all signers have signed
@@ -84,16 +87,17 @@ public class SigningProcessService {
                 .stream()
                 .allMatch(s -> s.getStatus() == SignerStatus.SIGNED);
 
-        auditEventPublisher.publish(
-                AuditAction.REQUEST_COMPLETED,
-                request.getSender(),
-                request,
-                "All signers completed. Document finalized."
-        );
-
+        // 🎯 FIX: Moved inside the condition block so it only publishes when the contract is truly closed!
         if (allSigned) {
             request.setStatus(SignatureRequestStatus.COMPLETED);
             signatureRequestRepository.save(request);
+
+            auditEventPublisher.publish(
+                    AuditAction.REQUEST_COMPLETED,
+                    request.getSender(),
+                    request,
+                    "All signers completed. Document finalized."
+            );
         }
     }
 }
